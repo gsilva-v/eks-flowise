@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: flowise-ingress
+  annotations:
+    # Annotations para integrar com o ALB
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listener-ports: '80'
+spec:
+  rules:
+  - host: flowise.example.com  # Subdomínio para o Flowise
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: flowise-service
+            port:
+              number: 80

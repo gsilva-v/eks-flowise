@@ -1,48 +1,26 @@
-name: CI/CD Pipeline
+# .github/workflows/deploy.yml
+
+name: Deploy Flowise to EKS
+
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  terraform:
-    name: Terraform Apply
+  build-and-deploy:
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
+      # Passo 1: Check-out o código do repositório
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
-
-      - name: Configure AWS Credentials
-        run: echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV && echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
-    
-      - name: Terraform Format
-        run: terraform fmt
-        working-directory: ./terraform 
-
-      - name: Terraform Init
-        run: terraform init
-        working-directory: ./terraform 
-
-      - name: Terraform Plan
-        run: terraform plan 
-        working-directory: ./terraform 
-
-      - name: Terraform Apply
-        run: terraform apply -auto-approve
-        working-directory: ./terraform 
-
-  deploy-flowise:
-    runs-on: ubuntu-latest
-    needs: terraform  # Esse job depende do job terraform
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
+      # Passo 2: Configurar AWS CLI
       - name: Set up AWS CLI
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -50,26 +28,30 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      # Passo 3: Login no ECR
       - name: Login to Amazon ECR
         run: aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
 
+      # Passo 4: Pull da imagem oficial do Flowise do Docker Hub
       - name: Pull Flowise Docker image from Docker Hub
         run: |
           docker pull flowise/flowise:latest
           docker tag flowise/flowise:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/flowise:latest
 
+      # Passo 5: Push da imagem Docker para o ECR
       - name: Push Docker image to ECR
         run: |
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/flowise:latest
 
-      - name: Set up kubectl
-        run: |
-          aws eks --region ${{ secrets.AWS_REGION }} update-kubeconfig --name flowise-cluster
-
+      # Passo 6: Atualizar o deployment no EKS
       - name: Update EKS deployment
         run: |
           kubectl set image deployment/flowise-deployment flowise=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/flowise:latest
           kubectl rollout status deployment/flowise-deployment
 
+      # Passo 7: Validar o Deploy (Opcional)
       - name: Validate Deployment
-        run: kubectl get pods
+        run: |
+          kubectl get pods
+
+        

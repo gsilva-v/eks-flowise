@@ -45,19 +45,16 @@ module "rds" {
   backup_retention_period = 0
 }
 
-module "ec2" {
-  source = "./modules/ec2"
-  instance-type = "t2.micro"
-  ami = "ami-066784287e358dad1"
-  subnet-id = module.vpc.public_subnet_ids[0]
-  vpc-security-group-ids = [module.sg.sg_id]
+# Chamar o módulo ALB
+module "alb" {
+  source          = "./modules/alb"
+  vpc_id          = module.vpc.vpc_id
+  public_subnet_ids = module.vpc.public_subnet_ids
+  security_groups = module.sg.sg_id
 }
-
 
 module "cloudfront" {
   source = "./modules/cloudfront"
-  
   origin-id = "example.com"
   cdn-bucket-name = "example-toolz-test"
-
 }

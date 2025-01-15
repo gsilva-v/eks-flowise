@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flowise-deployment
+spec:
+  replicas: 2  # Número de réplicas para garantir alta disponibilidade
+  selector:
+    matchLabels:
+      app: flowise
+  template:
+    metadata:
+      labels:
+        app: flowise
+    spec:
+      containers:
+      - name: flowise
+        image: "<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/flowise:latest"  # Ou sua imagem Docker personalizada
+        ports:
+        - containerPort: 3000  # A porta padrão do Flowise
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flowise-service
+spec:
+  selector:
+    app: flowise
+  ports:
+    - protocol: TCP
+      port: 80  # A porta que será exposta pelo ALB
+      targetPort: 3000  # Porta do container Flowise
+  type: ClusterIP  # Serviço interno

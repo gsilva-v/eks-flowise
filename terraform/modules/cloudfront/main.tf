@@ -1,12 +1,11 @@
 resource "aws_s3_bucket" "my_bucket" {
   bucket = var.cdn-bucket-name
-  # bucket = "test-toolz-devops"
   acl    = "private"
 }
 
 resource "aws_cloudfront_distribution" "cdn" {
   origin {
-    domain_name = "${aws_s3_bucket.my_bucket.bucket_regional_domain_name}" 
+    domain_name = aws_lb.my_lb.dns_name
     # origin_id   = "myS3Origin"
     origin_id   = var.origin-id
   }
